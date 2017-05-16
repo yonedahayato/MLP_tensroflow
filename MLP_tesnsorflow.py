@@ -2,14 +2,15 @@
 
 import tensorflow as tf
 import sys
+import numpy as np
 # data mnist
-train_size, test_size = 6000, 1000
 from mnist import download_mnist, load_mnist, key_file
 download_mnist()
-X_train = load_mnist(key_file["train_img"])[8:train_size+8, :]
-X_test = load_mnist(key_file["test_img"], )[8:test_size+8,:]
-y_train = load_mnist(key_file["train_label"], 1)[:train_size,0]
-y_test = load_mnist(key_file["test_label"], 1)[:test_size,0]
+X_train = load_mnist(key_file["train_img"])[8:, :]
+X_test = load_mnist(key_file["test_img"], )[8:,:]
+y_train = load_mnist(key_file["train_label"], 1)
+y_test = load_mnist(key_file["test_label"], 1)
+
 
 def MLP(alpha, lr, layer1, layer2, layer3):
     X = tf.placeholder(tf.float32, [None, 784])
@@ -34,11 +35,11 @@ def MLP(alpha, lr, layer1, layer2, layer3):
 
     cross_entropy = -tf.reduce_sum(y_ * tf.log(y))
 
-
     L2_sqr = tf.nn.l2_loss(w_0) + tf.nn.l2_loss(w_1) + tf.nn.l2_loss(w_2)
 
-    loss = cross_entropy + alpha + L2_sqr
+    loss = cross_entropy + alpha * L2_sqr
     train_step = tf.train.GradientDescentOptimizer(lr).minimize(loss)
+
     correct_prediction = tf.equal(tf.argmax(y,1), tf.argmax(y_,1))
     accuracy = tf.reduce_mean(tf.cast(correct_prediction, "float"))
 
@@ -46,16 +47,17 @@ def MLP(alpha, lr, layer1, layer2, layer3):
     with tf.Session() as sess:
         sess.run(init)
         print("Training...")
-        for i in range(int(6000/50)-1):
-            batch_x, batch_y = X_train[(50*i):(50*(i+1)),:], y_train[(50*i):(50*(i+1))]
-            print(batch_x.shape)
-            print(batch_y.shape)
-            #sys.exit()
-            train_step.run({X: batch_x, y_: batch_y})
-            if i % int((int(6000/50)-1)/10):
-                train_accuracy = accuracy.eval({X: batch_x, y_: batch_y})
+        for i in range(20000):
+            #batch_x, batch_y = X_train[(50*i):(50*(i+1)),:], y_train[(50*i):(50*(i+1)),0]
+            batch_index = np.random.choice(X_train.shape[0], 50, replace=False)
+            batch_x = X_train[batch_index, :]
+            batch_y = y_train[batch_index, 0]
+
+            train_step.run({X: batch_x, label: batch_y})
+            if i % 2000==0:
+                train_accuracy = accuracy.eval({X: batch_x, label: batch_y})
                 print(" %6d %6.3f" % (i, train_accuracy))
-        print("accuracy %6.3f" % accuracy.eval({X: X_test, y_: y_test}))
+        print("accuracy %6.3f" % accuracy.eval({X: X_test, label: y_test[:,0]}))
 
 if __name__ == "__main__":
-    MLP(0.001, 0.001, 50, 50, 50)
+    MLP(1e-8, 0.709e-3, 60, 100, 55)
